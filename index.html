@@ -17,12 +17,29 @@
 <body>
     <div class="row">
         <div class="col-md-3">
-            <div style="padding:10px">
-                <form class="form" action="#" onsubmit="getRoute(this.address.value); return false">
-                    <input type="text" class="form-control" name="address" value="Cornell Tech, New York City, NY" />
+            <div style="padding:10px; padding-left:30px;">
+                <img class="img-responsive center-block" src="streetsavvy.jpg" />
+                <br/>
+                <form class="form" action="#" onsubmit="getRoute(this.from.value, this.to.value, this.alpha.value, this.beta.value); return false">
+                    <label for="from">From</label>
+                    <input type="text" class="form-control" name="from" placeholder="Leave blank for current location" />
+                    <br/>
+                    <label for="to">To</label>
+                    <input type="text" class="form-control" name="to" value="Times Square, New York City, NY" />
+                    <br/>
+                    <label for="alpha">Shortest Distance Weight</label>
+                    <input class="bar" type="range" id="rangeinput" value="100" name="alpha" />
+                    <br/>
+                    <label for="beta">Risk Weight</label>
+                    <input class="bar" type="range" id="rangeinput" value="10" name="beta" />
                     <br/>
                     <input class="btn btn-primary" type="submit" value="Go!" />
+                    <input class="btn btn-primary" type="button" value="Toggle Crime Map" onclick="toggle()" />
                 </form>
+                <br/>
+                <br/>
+                <br/>
+                <img class="img-responsive center-block" src="pdf.jpg" />
             </div>
         </div>
         <div class="col-md-9">
@@ -54,59 +71,78 @@
 
         var current = L.circle([0,0],12);
         var path = [];
+        var curr_coords = null;
 
         function getCurrentLocation() {
             navigator.geolocation.getCurrentPosition(function (position) {
-                var coords = [position.coords.latitude, position.coords.longitude]
-                current = L.circle(coords, 12, {color: 'blue'}).addTo(map);
-                map.panTo(coords);
+                curr_coords = [position.coords.latitude, position.coords.longitude]
+                current = L.circle(curr_coords, 12, {color: 'blue'}).addTo(map);
+                map.panTo(curr_coords);
                 map.setZoom(18);
             });
         }
         getCurrentLocation()
         
         var geocoder = new GClientGeocoder();
-        var test = null;
-        function getRoute(address) {
+        var args = [];
+        function getRoute(from, to, alpha, beta) {
             deletePoint(current);
             deletePath(path);
-            if (geocoder) {
-                geocoder.getLatLng(
-                    address,
-                    function(point) {
-                        if (!point) {
-                            alert(address + " not found");
-                        } else {
-                            var curr_lat = current.getLatLng()['lat'];
-                            var curr_lng = current.getLatLng()['lng'];
-                            
-                            var marker = new GMarker(point, {draggable: true}).getLatLng();
-                            var dest_lat = marker.k;
-                            var dest_lng = marker.D;
-//                            L.circleMarker(L.latLng(lat,lon)).addTo(map);
-                            console.log(curr_lat,curr_lng,dest_lat,dest_lng);
-                            $.ajax({
-                                url: 'http://52.1.185.143:8080/query',
-                                data: {
-                                    curr_lat : curr_lat,
-                                    curr_lng : curr_lng,
-                                    dest_lat : dest_lat,
-                                    dest_lng : dest_lng,
-                                },
-                                error: function() {
-                                    console.log("ERROR");
-                                },
-                                dataType: 'json',
-                                success: function(data) {
-                                    console.log(data);
-                                    addPath(data['coords']);
-                                },
-                                type: 'POST'
-                            });
-                        }
+            args = [from,to,alpha,beta];
+            var from_coord = null;
+            var to_coord = null;
+            if (from != "") {
+                geocoder.getLatLng(from, function(point) {
+                    if (!point) {
+                        alert(from + " not found");
+                    } else {
+                        var marker = new GMarker(point, {draggable: true}).getLatLng();
+                        var curr_lat = marker.k;
+                        var curr_lng = marker.D;
+                        from_coord = [curr_lat, curr_lng];
                     }
-                );
+                });
             }
+            geocoder.getLatLng(to, function(point) {
+                if (!point) {
+                    alert(to + " not found");
+                } else {
+                    var curr_lat = curr_coords[0];
+                    var curr_lng = curr_coords[1];
+                    
+                    if (from_coord) {
+                        curr_lat = from_coord[0];
+                        curr_lng = from_coord[1];
+                    }
+
+                    var marker = new GMarker(point, {draggable: true}).getLatLng();
+                    var dest_lat = marker.k;
+                    var dest_lng = marker.D;
+                    alpha = Number(alpha)/100;
+                    beta = Number(beta)/100;
+                    console.log(curr_lat,curr_lng,dest_lat,dest_lng, alpha, beta);
+                    $.ajax({
+                        url: 'http://52.1.185.143:8080/query',
+                        data: {
+                            curr_lat : curr_lat,
+                            curr_lng : curr_lng,
+                            dest_lat : dest_lat,
+                            dest_lng : dest_lng,
+                            alpha    : alpha,
+                            beta     : beta,
+                        },
+                        error: function() {
+                            console.log("ERROR");
+                        },
+                        dataType: 'json',
+                        success: function(data) {
+                            console.log(data);
+                            addPath(data['coords']);
+                        },
+                        type: 'POST'
+                    });
+                }
+            });
         };
         
          
@@ -116,51 +152,68 @@
             path.push(L.circle(coords[i], 12, {color: 'green'}).addTo(map));
             for (var k = 0; k < i; k++) {
                 path.push(L.polyline([coords[k],coords[k+1]]).addTo(map));
-            }  
+            }
 
-            map.fitBounds([
-                coords[0],
-                coords[i]
-            ]);
-        };
+            map.fitBounds([coords]);
+        };        
+
+        function getCrimeMap() {
+            d3.csv("allPaths.csv", function(d) {
+                return {
+                    Node1: d.Node1,
+                    Node2: d.Node2,
+                    Lat1: +d.Lat1,
+                    Lon1: +d.Lon1, // convert "Length" column to number
+                    Lat2: +d.Lat2,
+                    Lon2: +d.Lon2, // convert "Length" column to number
+                    Dist: +d.Distance,
+                    Risk: +d.Risk
+                };
+                }, function(error, rows) {
+//                    console.log(rows);
+                    path = [];
+                    risks = [];
+//                    console.log(rows[0].Dist);
+                    for (var k = 0; k < rows.length; k++) {
+                        path = [[rows[k].Lat1,rows[k].Lon1],[rows[k].Lat2,rows[k].Lon2]];
+                        risks = [rows[k].Risk, rows[k].Risk];
+                        plotArray(path,risks);
+                    }
+            });
+
+        }
         
+        var polylines = [];
+        var polylineArray = [];
         function plotArray(coords,risks) {
-
-            var circle = L.circle(coords[0],30,{color: 'blue'}).addTo(map);
             var i = coords.length;
-            var circle2 = L.circle(coords[i-1],30,{color: 'green'}).addTo(map);
-            // var polyline = L.polyline(coords, {color: d3.interpolateLab("red", "yellow")(.5)}).addTo(map);
-            //map.fitBounds(polyline.getBounds()); 
-            var polylines = [];
             var avg_risk = 0;
             var relativeRisk = d3.scale.linear()
-            .domain([0.0,4000.0])
-            .range([-1,1]);
+            .domain([0.0,8.0])
+            .range([-.05,1]);
 
             for (var k = 0; k < risks.length-1; k++) {
-              avg_risk =  relativeRisk((risks[k]+risks[k+1])/2);
-              if (avg_risk<1){
-                //if bad, color is on red-yellow
-                polyline = L.polyline([coords[k],coords[k+1]],
-               {color: d3.interpolateLab("red", "yellow")(avg_risk+1)})
-               .addTo(map);
-              }
-              else{
-                //must be good (0,1), so color on yellow-green
-                polyline = L.polyline([coords[k],coords[k+1]],
-               {color: d3.interpolateLab("yellow", "green")(avg_risk)})
-               .addTo(map);
-              }
-            }  
-
-            var l = coords.length;
-            map.fitBounds([
-            coords[0],
-            coords[i-1]
-            ]);
-          };
-
-
+                avg_risk =  relativeRisk((risks[k]+risks[k+1])/2);
+                if (avg_risk<0){
+                    //must be good bc low risk:(0,1), so color on yellow-green
+                    polylines.push(L.polyline([coords[k],coords[k+1]],{color: d3.interpolateLab("yellow", "orange")(avg_risk*20+.05)}).addTo(map));
+                }else{
+                    //must be bad bc high risk:(0,1), so color on yellow-red
+                    polylines.push(L.polyline([coords[k],coords[k+1]], {color: d3.interpolateLab("yellow", "red")(avg_risk)}).addTo(map));
+                }
+            }
+        };
+        
+        function toggle() {
+            if (polylines.length != 0) {
+                deletePath(polylines);
+            } else {
+                getCrimeMap();
+                if (args.length != 0) {
+                    getRoute(args[0],args[1],args[2],args[3]);
+                }
+            }
+        }
     </script>
 </body>
 </html>

@@ -1,0 +1,150 @@
+<html>
+<head>
+    <link rel="stylesheet" href="http://libs.cartocdn.com/cartodb.js/v3/themes/css/cartodb.css" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+    <script src="http://libs.cartocdn.com/cartodb.js/v3/cartodb.js"></script>
+    <script src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=ABQIAAAAjU0EJWnWPMv7oQ-jjS7dYxSPW5CJgpdgO_s4yyMovOaVh_KvvhSfpvagV18eOyDWu7VytS6Bi1CWxw"
+      type="text/javascript"></script>
+    <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+    <!--[if lte IE 8]>
+    <link rel="stylesheet" href="http://libs.cartocdn.com/cartodb.js/v2/themes/css/cartodb.ie.css" />
+    <![endif]-->
+    <style>
+        html, body {width:100%; height:100%; padding: 0; margin: 0;}
+        #cartodb-map { width: 100%; height:100%; background: black;}
+    </style>
+</head>
+<body>
+    <div class="row">
+        <!-- <div class="col-md-3">
+            <div style="padding:10px">
+                <form class="form" action="#" onsubmit="getRoute(this.address.value); return false">
+                    <input type="text" class="form-control" name="address" value="Cornell Tech, New York City, NY" />
+                    <br/>
+                    <input class="btn btn-primary" type="submit" value="Go!" />
+                </form>
+            </div>
+        </div> -->
+        <div class="col-md-9">
+            <div id='cartodb-map'></div>
+        </div>
+    </div>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script>
+        var map = new L.Map('cartodb-map', { 
+            center: [0,0],
+            zoom: 10
+        })
+
+       /* L.tileLayer('https://dnv9my2eseobd.cloudfront.net/v3/cartodb.map-4xtxp73f/{z}/{x}/{y}.png', {
+            attribution: 'Mapbox <a href="http://mapbox.com/about/maps" target="_blank">Terms &amp; Feedback</a>'
+        }).addTo(map);*/
+
+        L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+
+        d3.csv("allPaths.csv", function(d) {
+         return {
+          Node1: d.Node1,
+          Node2: d.Node2,
+          Lat1: +d.Lat1,
+          Lon1: +d.Lon1, // convert "Length" column to number
+          Lat2: +d.Lat2,
+          Lon2: +d.Lon2, // convert "Length" column to number
+          Dist: +d.Distance,
+          Risk: +d.Risk
+          
+          /*path = [[d.Lat1,d.Lon1],[d.Lat2,d.Lon2]];
+          risks = [d.Risk, d.Risk];
+          console.log(path);
+          plotArray(path,risks);*/
+          //console.log(Risk);
+        };
+      }, function(error, rows) {
+        console.log(rows);
+          path = [];
+          risks = [];
+          console.log(rows[0].Dist);
+          for (var k = 0; k < rows.length; k++) {
+          path = [[rows[k].Lat1,rows[k].Lon1],[rows[k].Lat2,rows[k].Lon2]];
+          risks = [rows[k].Risk, rows[k].Risk];
+          plotArray(path,risks);
+          }
+
+      });
+
+
+
+            
+        function deletePolygon(id) {
+            map.removeLayer(id);
+            return false;
+        }
+        
+        var current = L.circle([0,0],12);
+        var destination = L.circle([0,0],12);
+        var path = L.polyline([current, destination], {color: 'blue'});
+
+        function getCurrentLocation() {
+            var loc = navigator.geolocation.getCurrentPosition(function (position) {
+                var coords = [position.coords.latitude, position.coords.longitude]
+                map.panTo(coords);
+                map.setZoom(18);
+                current = L.circle(coords, 12, {color: 'blue'}).addTo(map);
+                return [coords];
+            });
+           console.log(loc);
+        }
+        
+        getCurrentLocation();
+
+        var geocoder = new GClientGeocoder();
+        
+
+            //plotArray(path,risks);
+
+
+        function plotArray(coords,risks) {
+
+            //var circle = L.circle(coords[0],30,{color: 'blue'}).addTo(map);
+            var i = coords.length;
+            //var circle2 = L.circle(coords[i-1],30,{color: 'green'}).addTo(map);
+            // var polyline = L.polyline(coords, {color: d3.interpolateLab("red", "yellow")(.5)}).addTo(map);
+            //map.fitBounds(polyline.getBounds()); 
+            var polylines = [];
+            var avg_risk = 0;
+            var relativeRisk = d3.scale.linear()
+            .domain([0.0,8.0])
+            .range([-.05,1]);
+
+
+            for (var k = 0; k < risks.length-1; k++) {
+              avg_risk =  relativeRisk((risks[k]+risks[k+1])/2);
+              if (avg_risk<0){
+                //must be good bc low risk:(0,1), so color on yellow-green
+                polyline = L.polyline([coords[k],coords[k+1]],
+               {color: d3.interpolateLab("yellow", "orange")(avg_risk*20+.05)})
+               .addTo(map);
+              }
+              else{
+                //must be bad bc high risk:(0,1), so color on yellow-red
+                polyline = L.polyline([coords[k],coords[k+1]],
+               {color: d3.interpolateLab("yellow", "red")(avg_risk)})
+               .addTo(map);
+              }
+            }  
+
+            /*var l = coords.length;
+            map.fitBounds([
+            coords[0],
+            coords[i-1]
+            ]);*/
+
+          };
+
+
+    </script>
+</body>
+</html>
