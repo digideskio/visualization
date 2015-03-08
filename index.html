@@ -29,6 +29,7 @@
             <div id='cartodb-map'></div>
         </div>
     </div>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
     <script>
         var map = new L.Map('cartodb-map', { 
             center: [0,0],
@@ -59,14 +60,16 @@
                 map.setZoom(18);
                 current = L.circle(coords, 12, {color: 'blue'}).addTo(map);
             });
+            return [coords];
         }
-        getCurrentLocation();
+        
         
         var geocoder = new GClientGeocoder();
         
         function getRoute(address) {
             deletePolygon(destination);
             deletePolygon(path);
+            currLoc = getCurrentLocation();
             if (geocoder) {
                 geocoder.getLatLng(
                     address,
@@ -79,8 +82,23 @@
                             var lon = marker.D;
 //                            L.circleMarker(L.latLng(lat,lon)).addTo(map);
                             destination = L.circle([lat, lon], 12, {color: 'green'}).addTo(map);
-                            path = L.polyline([current.getLatLng(), destination.getLatLng()], {color: 'yellow'}).addTo(map);
-                            map.fitBounds(path.getBounds());
+                            $.ajax({
+                                url: 'http://54.84.68.199:8080/query',
+                                data: {
+                                    curr_lat : currLoc[0],
+                                    curr_lng : currLoc[1],
+                                    dest_lat : lat,
+                                    dest_lng : lon,
+                                },
+                                error: function() {
+                                    console.log("ERROR");
+                                },
+                                dataType: 'json',
+                                success: function(data) {
+                                  plotArray(data.coords, data.risks);
+                                },
+                                type: 'POST'
+                            });
 //                                  .bindPopup("I am a marker to be deleted.").openPopup();
                         }
                     }
@@ -88,17 +106,8 @@
             }
         };
 
-          path = [[40.741668,-74.001129],[40.742254,-74.000703],[40.742839,-74.000275],[40.743425,-73.999848],[40.744009,-73.999422],[40.744630,-73.998972],[40.745294,-73.998486],[40.745951,-73.998007],[40.746580,-73.997550],[40.745383,-73.994709],[40.746004,-73.994262],[40.746618,-73.993813],[40.745421,-73.990968],[40.746038,-73.990518],[40.746659,-73.990067],[40.747277,-73.989617],[40.746789,-73.988452]];
-            risks = [256.365,1650.4,1633.43,217.13,36.6768,665.89,3729.57,3610.72,1861.07,2703.54,1743.49,380.741,2309.7,3853.3,2395.15,1635.78,1857.1];
-
             //plotArray(path,risks);
 
-            /*var i = path.length;
-            console.log(i);
-            map.fitBounds([
-            path[0],
-            path[i-1]
-            ]);*/
 
         function plotArray(coords,risks) {
 
@@ -129,6 +138,13 @@
                .addTo(map);
               }
             }  
+
+            var l = coords.length;
+            map.fitBounds([
+            coords[0],
+            coords[i-1]
+            ]);
+
           };
 
 
