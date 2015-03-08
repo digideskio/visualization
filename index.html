@@ -1,0 +1,91 @@
+<html>
+<head>
+    <link rel="stylesheet" href="http://libs.cartocdn.com/cartodb.js/v3/themes/css/cartodb.css" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+    <script src="http://libs.cartocdn.com/cartodb.js/v3/cartodb.js"></script>
+    <script src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=ABQIAAAAjU0EJWnWPMv7oQ-jjS7dYxSPW5CJgpdgO_s4yyMovOaVh_KvvhSfpvagV18eOyDWu7VytS6Bi1CWxw"
+      type="text/javascript"></script>
+    <!--[if lte IE 8]>
+    <link rel="stylesheet" href="http://libs.cartocdn.com/cartodb.js/v2/themes/css/cartodb.ie.css" />
+    <![endif]-->
+    <style>
+        html, body {width:100%; height:100%; padding: 0; margin: 0;}
+        #cartodb-map { width: 100%; height:100%; background: black;}
+    </style>
+</head>
+<body>
+    <div class="row">
+        <div class="col-md-3">
+            <div style="padding:10px">
+                <form class="form" action="#" onsubmit="getRoute(this.address.value); return false">
+                    <input type="text" class="form-control" name="address" value="Cornell Tech, New York City, NY" />
+                    <br/>
+                    <input class="btn btn-primary" type="submit" value="Go!" />
+                </form>
+            </div>
+        </div>
+        <div class="col-md-9">
+            <div id='cartodb-map'></div>
+        </div>
+    </div>
+    <script>
+        var map = new L.Map('cartodb-map', { 
+            center: [0,0],
+            zoom: 10
+        })
+
+//        L.tileLayer('https://dnv9my2eseobd.cloudfront.net/v3/cartodb.map-4xtxp73f/{z}/{x}/{y}.png', {
+//            attribution: 'Mapbox <a href="http://mapbox.com/about/maps" target="_blank">Terms &amp; Feedback</a>'
+//        }).addTo(map);
+
+        L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+            
+        function deletePolygon(id) {
+            map.removeLayer(id);
+            return false;
+        }
+        
+        var current = L.circle([0,0],12);
+        var destination = L.circle([0,0],12);
+        var path = L.polyline([current, destination], {color: 'blue'});
+
+        function getCurrentLocation() {
+            navigator.geolocation.getCurrentPosition(function (position) {
+                var coords = [position.coords.latitude, position.coords.longitude]
+                map.panTo(coords);
+                map.setZoom(18);
+                current = L.circle(coords, 12, {color: 'blue'}).addTo(map);
+            });
+        }
+        getCurrentLocation();
+        
+        var geocoder = new GClientGeocoder();
+        
+        function getRoute(address) {
+            deletePolygon(destination);
+            deletePolygon(path);
+            if (geocoder) {
+                geocoder.getLatLng(
+                    address,
+                    function(point) {
+                        if (!point) {
+                            alert(address + " not found");
+                        } else {
+                            var marker = new GMarker(point, {draggable: true}).getLatLng();
+                            var lat = marker.k;
+                            var lon = marker.D;
+//                            L.circleMarker(L.latLng(lat,lon)).addTo(map);
+                            destination = L.circle([lat, lon], 12, {color: 'green'}).addTo(map);
+                            path = L.polyline([current.getLatLng(), destination.getLatLng()], {color: 'yellow'}).addTo(map);
+                            map.fitBounds(path.getBounds());
+//                            			.bindPopup("I am a marker to be deleted.").openPopup();
+                        }
+                    }
+                );
+            }
+        }
+    </script>
+</body>
+</html>
