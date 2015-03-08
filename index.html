@@ -1,8 +1,8 @@
 <html>
 <head>
-    <link rel="stylesheet" href="http://libs.cartocdn.com/cartodb.js/v3/themes/css/cartodb.css" />
+    <link rel="stylesheet" href="http://libs.cartocdn.com/cartodb.js/v3/3.12/themes/css/cartodb.css" />
+    <script src="http://libs.cartocdn.com/cartodb.js/v3/3.12/cartodb.js"></script>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
-    <script src="http://libs.cartocdn.com/cartodb.js/v3/cartodb.js"></script>
     <script src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=ABQIAAAAjU0EJWnWPMv7oQ-jjS7dYxSPW5CJgpdgO_s4yyMovOaVh_KvvhSfpvagV18eOyDWu7VytS6Bi1CWxw"
       type="text/javascript"></script>
     <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
@@ -36,40 +36,44 @@
             zoom: 10
         })
 
-//        L.tileLayer('https://dnv9my2eseobd.cloudfront.net/v3/cartodb.map-4xtxp73f/{z}/{x}/{y}.png', {
-//            attribution: 'Mapbox <a href="http://mapbox.com/about/maps" target="_blank">Terms &amp; Feedback</a>'
-//        }).addTo(map);
-
         L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
-            
-        function deletePolygon(id) {
+        
+        cartodb.createLayer(map, 'http://skambashi.cartodb.com/api/v2/viz/409983fa-c50b-11e4-93fe-0e4fddd5de28/viz.json').addTo(map)
+        .on('done', function(layer) {})
+        .on('error', function(err) { alert("some error occurred: " + err); });
+        
+        function deletePoint(id) {
             map.removeLayer(id);
             return false;
         }
         
+        function deletePath(path) {
+            while(path.length > 0) {
+                var line = path.pop();
+                deletePoint(line);
+            }
+        }
+
         var current = L.circle([0,0],12);
-        var destination = L.circle([0,0],12);
-        var path = L.polyline([current, destination], {color: 'blue'});
+        var path = [];
 
         function getCurrentLocation() {
             navigator.geolocation.getCurrentPosition(function (position) {
                 var coords = [position.coords.latitude, position.coords.longitude]
+                current = L.circle(coords, 12, {color: 'blue'}).addTo(map);
                 map.panTo(coords);
                 map.setZoom(18);
-                current = L.circle(coords, 12, {color: 'blue'}).addTo(map);
             });
-            return [coords];
         }
-        
+        getCurrentLocation()
+        console.log(current.getLatLng());
         
         var geocoder = new GClientGeocoder();
         
         function getRoute(address) {
-            deletePolygon(destination);
-            deletePolygon(path);
-            currLoc = getCurrentLocation();
+            deletePath(path);
             if (geocoder) {
                 geocoder.getLatLng(
                     address,
@@ -79,36 +83,46 @@
                         } else {
                             var marker = new GMarker(point, {draggable: true}).getLatLng();
                             var lat = marker.k;
-                            var lon = marker.D;
+                            var lng = marker.D;
 //                            L.circleMarker(L.latLng(lat,lon)).addTo(map);
-                            destination = L.circle([lat, lon], 12, {color: 'green'}).addTo(map);
+                            path.push(L.circle([lat, lng], 12, {color: 'green'}).addTo(map));
+                            var coords = null;
                             $.ajax({
-                                url: 'http://54.84.68.199:8080/query',
+                                url: 'http://52.1.185.143:8080/query',
                                 data: {
-                                    curr_lat : currLoc[0],
-                                    curr_lng : currLoc[1],
+                                    curr_lat : current.getLatLng().lat,
+                                    curr_lng : current.getLatLng().lng,
                                     dest_lat : lat,
-                                    dest_lng : lon,
+                                    dest_lng : lng,
                                 },
                                 error: function() {
                                     console.log("ERROR");
                                 },
                                 dataType: 'json',
                                 success: function(data) {
-                                  plotArray(data.coords, data.risks);
+                                  addPath(data);
                                 },
                                 type: 'POST'
                             });
-//                                  .bindPopup("I am a marker to be deleted.").openPopup();
                         }
                     }
                 );
             }
         };
+        
+         
+        function addPath(coords) {
+            var i = coords.length;
+            for (var k = 0; k < coords.length-1; k++) {
+                path.push(L.polyline([coords[k],coords[k+1]], {color: color}).addTo(map));
+            }  
 
-            //plotArray(path,risks);
-
-
+            map.fitBounds([
+                coords[0],
+                coords[i-1]
+            ]);
+        };
+        
         function plotArray(coords,risks) {
 
             var circle = L.circle(coords[0],30,{color: 'blue'}).addTo(map);
@@ -121,7 +135,6 @@
             var relativeRisk = d3.scale.linear()
             .domain([0.0,4000.0])
             .range([-1,1]);
-
 
             for (var k = 0; k < risks.length-1; k++) {
               avg_risk =  relativeRisk((risks[k]+risks[k+1])/2);
@@ -144,7 +157,6 @@
             coords[0],
             coords[i-1]
             ]);
-
           };
 
 
