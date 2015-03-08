@@ -40,10 +40,6 @@
             attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
         
-        cartodb.createLayer(map, 'http://skambashi.cartodb.com/api/v2/viz/409983fa-c50b-11e4-93fe-0e4fddd5de28/viz.json').addTo(map)
-        .on('done', function(layer) {})
-        .on('error', function(err) { alert("some error occurred: " + err); });
-        
         function deletePoint(id) {
             map.removeLayer(id);
             return false;
@@ -68,11 +64,11 @@
             });
         }
         getCurrentLocation()
-        console.log(current.getLatLng());
         
         var geocoder = new GClientGeocoder();
-        
+        var test = null;
         function getRoute(address) {
+            deletePoint(current);
             deletePath(path);
             if (geocoder) {
                 geocoder.getLatLng(
@@ -81,26 +77,29 @@
                         if (!point) {
                             alert(address + " not found");
                         } else {
+                            var curr_lat = current.getLatLng()['lat'];
+                            var curr_lng = current.getLatLng()['lng'];
+                            
                             var marker = new GMarker(point, {draggable: true}).getLatLng();
-                            var lat = marker.k;
-                            var lng = marker.D;
+                            var dest_lat = marker.k;
+                            var dest_lng = marker.D;
 //                            L.circleMarker(L.latLng(lat,lon)).addTo(map);
-                            path.push(L.circle([lat, lng], 12, {color: 'green'}).addTo(map));
-                            var coords = null;
+                            console.log(curr_lat,curr_lng,dest_lat,dest_lng);
                             $.ajax({
                                 url: 'http://52.1.185.143:8080/query',
                                 data: {
-                                    curr_lat : current.getLatLng().lat,
-                                    curr_lng : current.getLatLng().lng,
-                                    dest_lat : lat,
-                                    dest_lng : lng,
+                                    curr_lat : curr_lat,
+                                    curr_lng : curr_lng,
+                                    dest_lat : dest_lat,
+                                    dest_lng : dest_lng,
                                 },
                                 error: function() {
                                     console.log("ERROR");
                                 },
                                 dataType: 'json',
                                 success: function(data) {
-                                  addPath(data);
+                                    console.log(data);
+                                    addPath(data['coords']);
                                 },
                                 type: 'POST'
                             });
@@ -112,14 +111,16 @@
         
          
         function addPath(coords) {
-            var i = coords.length;
-            for (var k = 0; k < coords.length-1; k++) {
-                path.push(L.polyline([coords[k],coords[k+1]], {color: color}).addTo(map));
+            var i = coords.length - 1;
+            path.push(L.circle(coords[0], 12, {color: 'blue'}).addTo(map));
+            path.push(L.circle(coords[i], 12, {color: 'green'}).addTo(map));
+            for (var k = 0; k < i; k++) {
+                path.push(L.polyline([coords[k],coords[k+1]]).addTo(map));
             }  
 
             map.fitBounds([
                 coords[0],
-                coords[i-1]
+                coords[i]
             ]);
         };
         
