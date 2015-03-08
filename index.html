@@ -5,6 +5,7 @@
     <script src="http://libs.cartocdn.com/cartodb.js/v3/cartodb.js"></script>
     <script src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=ABQIAAAAjU0EJWnWPMv7oQ-jjS7dYxSPW5CJgpdgO_s4yyMovOaVh_KvvhSfpvagV18eOyDWu7VytS6Bi1CWxw"
       type="text/javascript"></script>
+    <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
     <!--[if lte IE 8]>
     <link rel="stylesheet" href="http://libs.cartocdn.com/cartodb.js/v2/themes/css/cartodb.ie.css" />
     <![endif]-->
@@ -80,12 +81,57 @@
                             destination = L.circle([lat, lon], 12, {color: 'green'}).addTo(map);
                             path = L.polyline([current.getLatLng(), destination.getLatLng()], {color: 'yellow'}).addTo(map);
                             map.fitBounds(path.getBounds());
-//                            			.bindPopup("I am a marker to be deleted.").openPopup();
+//                                  .bindPopup("I am a marker to be deleted.").openPopup();
                         }
                     }
                 );
             }
-        }
+        };
+
+          path = [[40.741668,-74.001129],[40.742254,-74.000703],[40.742839,-74.000275],[40.743425,-73.999848],[40.744009,-73.999422],[40.744630,-73.998972],[40.745294,-73.998486],[40.745951,-73.998007],[40.746580,-73.997550],[40.745383,-73.994709],[40.746004,-73.994262],[40.746618,-73.993813],[40.745421,-73.990968],[40.746038,-73.990518],[40.746659,-73.990067],[40.747277,-73.989617],[40.746789,-73.988452]];
+            risks = [256.365,1650.4,1633.43,217.13,36.6768,665.89,3729.57,3610.72,1861.07,2703.54,1743.49,380.741,2309.7,3853.3,2395.15,1635.78,1857.1];
+
+            //plotArray(path,risks);
+
+            /*var i = path.length;
+            console.log(i);
+            map.fitBounds([
+            path[0],
+            path[i-1]
+            ]);*/
+
+        function plotArray(coords,risks) {
+
+            var circle = L.circle(coords[0],30,{color: 'blue'}).addTo(map);
+            var i = coords.length;
+            var circle2 = L.circle(coords[i-1],30,{color: 'green'}).addTo(map);
+            // var polyline = L.polyline(coords, {color: d3.interpolateLab("red", "yellow")(.5)}).addTo(map);
+            //map.fitBounds(polyline.getBounds()); 
+            var polylines = [];
+            var avg_risk = 0;
+            var relativeRisk = d3.scale.linear()
+            .domain([0.0,4000.0])
+            .range([-1,1]);
+
+
+            for (var k = 0; k < risks.length-1; k++) {
+              avg_risk =  relativeRisk((risks[k]+risks[k+1])/2);
+              if (avg_risk<1){
+                //if bad, color is on red-yellow
+                polyline = L.polyline([coords[k],coords[k+1]],
+               {color: d3.interpolateLab("red", "yellow")(avg_risk+1)})
+               .addTo(map);
+              }
+              else{
+                //must be good (0,1), so color on yellow-green
+                polyline = L.polyline([coords[k],coords[k+1]],
+               {color: d3.interpolateLab("yellow", "green")(avg_risk)})
+               .addTo(map);
+              }
+            }  
+          };
+
+
     </script>
 </body>
 </html>
