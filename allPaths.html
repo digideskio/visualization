@@ -16,15 +16,6 @@
 </head>
 <body>
     <div class="row">
-        <!-- <div class="col-md-3">
-            <div style="padding:10px">
-                <form class="form" action="#" onsubmit="getRoute(this.address.value); return false">
-                    <input type="text" class="form-control" name="address" value="Cornell Tech, New York City, NY" />
-                    <br/>
-                    <input class="btn btn-primary" type="submit" value="Go!" />
-                </form>
-            </div>
-        </div> -->
         <div class="col-md-9">
             <div id='cartodb-map'></div>
         </div>
@@ -36,9 +27,17 @@
             zoom: 10
         })
 
-       /* L.tileLayer('https://dnv9my2eseobd.cloudfront.net/v3/cartodb.map-4xtxp73f/{z}/{x}/{y}.png', {
-            attribution: 'Mapbox <a href="http://mapbox.com/about/maps" target="_blank">Terms &amp; Feedback</a>'
-        }).addTo(map);*/
+        var layerUrl = 'http://gmr33.cartodb.com/api/v2/viz/3df8972e-c50d-11e4-b744-0e9d821ea90d/viz.json';
+
+        cartodb.createLayer(map, layerUrl)
+        .addTo(map)
+        .on('done', function(layer) {
+
+        }).on('error', function() {
+          //log the error
+        });
+
+       
 
         L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -117,7 +116,7 @@
             var avg_risk = 0;
             var relativeRisk = d3.scale.linear()
             .domain([0.0,8.0])
-            .range([-.05,1]);
+            .range([-.1,1]);
 
 
             for (var k = 0; k < risks.length-1; k++) {
@@ -125,13 +124,13 @@
               if (avg_risk<0){
                 //must be good bc low risk:(0,1), so color on yellow-green
                 polyline = L.polyline([coords[k],coords[k+1]],
-               {color: d3.interpolateLab("yellow", "orange")(avg_risk*20+.05)})
+               {color: d3.interpolateLab("yellow", "orange")(avg_risk*10+.1)})
                .addTo(map);
               }
               else{
                 //must be bad bc high risk:(0,1), so color on yellow-red
                 polyline = L.polyline([coords[k],coords[k+1]],
-               {color: d3.interpolateLab("yellow", "red")(avg_risk)})
+               {color: d3.interpolateLab("orange", "red")(avg_risk)})
                .addTo(map);
               }
             }  
