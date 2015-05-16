@@ -19,7 +19,7 @@
         <div class="col-md-3">
             <div style="padding:10px; padding-left:30px;">
                 <img class="img-responsive center-block" src="streetsavvy.jpg" />
-                <br/>
+		<br/>
                 <form class="form" action="#" onsubmit="getRoute(this.from.value, this.to.value, this.alpha.value, this.beta.value); return false">
                     <label for="from">From</label>
                     <input type="text" class="form-control" name="from" placeholder="Leave blank for current location" />
@@ -122,7 +122,7 @@
                     beta = Number(beta)/100;
                     console.log(curr_lat,curr_lng,dest_lat,dest_lng, alpha, beta);
                     $.ajax({
-                        url: 'http://52.1.185.143:8080/query',
+                        url: 'http://54.175.21.94:8080/query',
                         data: {
                             curr_lat : curr_lat,
                             curr_lng : curr_lng,
