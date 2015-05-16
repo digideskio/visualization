@@ -82,45 +82,19 @@
             });
         }
         getCurrentLocation()
-        
-        var geocoder = new GClientGeocoder();
-        var args = [];
-        function getRoute(from, to, alpha, beta) {
-            deletePoint(current);
-            deletePath(path);
-            args = [from,to,alpha,beta];
-            var from_coord = null;
-            var to_coord = null;
-            if (from != "") {
-                geocoder.getLatLng(from, function(point) {
-                    if (!point) {
-                        alert(from + " not found");
-                    } else {
-                        var marker = new GMarker(point, {draggable: true}).getLatLng();
-                        var curr_lat = marker.k;
-                        var curr_lng = marker.D;
-                        from_coord = [curr_lat, curr_lng];
-                    }
-                });
-            }
+
+        function toGetRoute(curr_lat, curr_lng, to, alpha, beta) {
             geocoder.getLatLng(to, function(point) {
                 if (!point) {
                     alert(to + " not found");
                 } else {
-                    var curr_lat = curr_coords[0];
-                    var curr_lng = curr_coords[1];
-                    
-                    if (from_coord) {
-                        curr_lat = from_coord[0];
-                        curr_lng = from_coord[1];
-                    }
-
                     var marker = new GMarker(point, {draggable: true}).getLatLng();
-                    var dest_lat = marker.k;
-                    var dest_lng = marker.D;
+                    console.log("TO COORDS:", marker);
+                    var dest_lat = marker.A;
+                    var dest_lng = marker.F;
                     alpha = Number(alpha)/100;
                     beta = Number(beta)/100;
-                    console.log(curr_lat,curr_lng,dest_lat,dest_lng, alpha, beta);
+                    console.log("FULL ARGS:",curr_lat,curr_lng,dest_lat,dest_lng, alpha, beta);
                     $.ajax({
                         url: 'http://54.175.21.94:8080/query',
                         data: {
@@ -143,6 +117,33 @@
                     });
                 }
             });
+        }
+
+        var geocoder = new GClientGeocoder();
+        var args = [];
+        function getRoute(from, to, alpha, beta) {
+            deletePoint(current);
+            deletePath(path);
+            args = [from,to,alpha,beta];
+            console.log("ARGS:", args);
+            var curr_lat = curr_coords[0];
+            var curr_lng = curr_coords[1];
+            if (args[0] != "") {
+                geocoder.getLatLng(args[0], function(point) {
+                    if (!point) {
+                        alert(args[0] + " not found");
+                        toGetRoute(curr_lat, curr_lng, to, alpha, beta);
+                    } else {
+                        var marker = new GMarker(point, {draggable: true}).getLatLng();
+                        console.log("FROM COORDS:", marker);
+                        curr_lat = marker.A;
+                        curr_lng = marker.F;
+                        toGetRoute(curr_lat, curr_lng, to, alpha, beta);
+                    }
+                });
+            } else {
+                toGetRoute(curr_lat, curr_lng, to, alpha, beta);
+            }
         };
         
          
